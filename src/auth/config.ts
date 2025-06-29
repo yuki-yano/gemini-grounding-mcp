@@ -15,9 +15,6 @@ export class AuthConfig {
   private authMethod: AuthMethod["type"] | null = null;
   private oauth2Client: OAuth2Client | null = null;
 
-  // OAuth2 client credentials should be provided via environment variables
-  private readonly CLIENT_ID = process.env.OAUTH_CLIENT_ID || "";
-  private readonly CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET || "";
 
   constructor() {
     this._initialize();
@@ -44,16 +41,10 @@ export class AuthConfig {
         }
         this.authMethod = "oauth";
 
-        // Initialize OAuth2 client with environment credentials
-        if (!this.CLIENT_ID || !this.CLIENT_SECRET) {
-          console.warn(
-            "OAuth2 credentials not found in environment. OAuth functionality may be limited.",
-          );
-        }
-        this.oauth2Client = new OAuth2Client(
-          this.CLIENT_ID,
-          this.CLIENT_SECRET,
-        );
+        // Initialize OAuth2 client
+        // The OAuth2Client will handle token refresh using the refresh token
+        // from ~/.gemini/oauth_creds.json
+        this.oauth2Client = new OAuth2Client("", "");
         return;
       }
     } catch (_error) {
