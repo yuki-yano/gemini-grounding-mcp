@@ -3,13 +3,13 @@ import {
   GoogleGenerativeAI,
   type GoogleSearchRetrievalTool,
 } from "@google/generative-ai";
-import { AuthConfig } from "../auth/config.js";
+import { AuthConfig } from "../auth/config";
 import type {
   GeminiOAuthResponse,
   GeminiResponse,
   GroundingChunk,
   GroundingMetadata,
-} from "../types/gemini.js";
+} from "../types/gemini";
 import type {
   BatchSearchResponse,
   BatchSearchResult,
@@ -17,10 +17,16 @@ import type {
   ErrorResponse,
   SearchResult,
   SearchResultDetail,
-} from "../types/index.js";
-import { Formatter } from "../utils/formatter.js";
-import { Scraper } from "../utils/scraper.js";
-import { CodeAssistClient } from "./code-assist-client.js";
+} from "../types/index";
+import {
+  extractSearchResults,
+  formatBatchResults,
+  formatError,
+  formatSearchResult,
+  insertCitations,
+} from "../utils/formatter";
+import { Scraper } from "../utils/scraper";
+import { CodeAssistClient } from "./code-assist-client";
 
 interface SearchWithDetailsResult {
   summary: string;
@@ -71,12 +77,9 @@ export class GeminiClient {
         const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
         if (groundingMetadata?.groundingSupports) {
           let text = response.text();
-          text = Formatter.insertCitations(
-            text,
-            groundingMetadata.groundingSupports,
-          );
+          text = insertCitations(text, groundingMetadata.groundingSupports);
 
-          const result = Formatter.formatSearchResult(
+          const result = formatSearchResult(
             {
               text,
               citations: this._extractCitations(groundingMetadata),
@@ -87,7 +90,7 @@ export class GeminiClient {
           return result;
         }
 
-        return Formatter.formatSearchResult(
+        return formatSearchResult(
           {
             text: response.text(),
             citations: [],
@@ -124,13 +127,10 @@ export class GeminiClient {
             text = this._removeDuplicateContent(text);
           } else if (groundingMetadata?.groundingSupports) {
             // Insert citations if not already present
-            text = Formatter.insertCitations(
-              text,
-              groundingMetadata.groundingSupports,
-            );
+            text = insertCitations(text, groundingMetadata.groundingSupports);
           }
 
-          return Formatter.formatSearchResult(
+          return formatSearchResult(
             {
               text,
               citations: this._extractCitations(groundingMetadata),
@@ -143,7 +143,7 @@ export class GeminiClient {
       }
     } catch (error) {
       console.error("Search error:", error);
-      return Formatter.formatError(error as Error, { query });
+      return formatError(error as Error, { query });
     }
   }
 
@@ -207,7 +207,7 @@ export class GeminiClient {
       }
     }
 
-    return Formatter.formatBatchResults(results);
+    return formatBatchResults(results);
   }
 
   private async _searchWithDetails(
@@ -230,7 +230,7 @@ export class GeminiClient {
       }
 
       const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
-      const searchResults = Formatter.extractSearchResults(groundingMetadata);
+      const searchResults = extractSearchResults(groundingMetadata);
 
       let summary = response.text();
 
@@ -239,10 +239,7 @@ export class GeminiClient {
       const existingCitations = summary.match(citationPattern);
 
       if (!existingCitations && groundingMetadata?.groundingSupports) {
-        summary = Formatter.insertCitations(
-          summary,
-          groundingMetadata.groundingSupports,
-        );
+        summary = insertCitations(summary, groundingMetadata.groundingSupports);
       }
 
       return {

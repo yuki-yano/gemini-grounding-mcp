@@ -1,5 +1,5 @@
 import fetch, { type Response } from "node-fetch";
-import type { AuthConfig } from "../auth/config.js";
+import type { AuthConfig } from "../auth/config";
 
 interface CodeAssistRequest {
   model: string;
