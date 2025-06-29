@@ -15,7 +15,6 @@ export class AuthConfig {
   private authMethod: AuthMethod["type"] | null = null;
   private oauth2Client: OAuth2Client | null = null;
 
-
   constructor() {
     this._initialize();
   }
