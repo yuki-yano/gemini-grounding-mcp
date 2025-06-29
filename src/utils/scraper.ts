@@ -1,6 +1,6 @@
 import { extract, toMarkdown } from "@mizchi/readability";
 import fetch from "node-fetch";
-import type { ScrapedContent } from "../types/index.js";
+import type { ScrapedContent } from "../types/index";
 
 interface CacheEntry {
   content: ScrapedContent;
@@ -10,80 +10,108 @@ interface CacheEntry {
 export class Scraper {
   private cache = new Map<string, CacheEntry>();
   private cacheTTL: number;
+  private scrapeTimeout: number;
+  private scrapeRetries: number;
 
   constructor() {
     this.cacheTTL = Number.parseInt(process.env.CACHE_TTL || "3600", 10) * 1000;
+    this.scrapeTimeout = Number.parseInt(
+      process.env.SCRAPE_TIMEOUT || "10000",
+      10,
+    );
+    this.scrapeRetries = Number.parseInt(process.env.SCRAPE_RETRIES || "3", 10);
   }
 
-  async scrapeUrl(url: string): Promise<ScrapedContent> {
+  async scrapeUrl(url: string, retries?: number): Promise<ScrapedContent> {
+    const maxRetries = retries ?? this.scrapeRetries;
+
     // Check cache first
     const cached = this.cache.get(url);
     if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
       return cached.content;
     }
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+    let lastError: Error | null = null;
 
-      const response = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; GeminiGroundingMCP/1.0)",
-        },
-        signal: controller.signal,
-      });
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(
+          () => controller.abort(),
+          this.scrapeTimeout,
+        );
 
-      clearTimeout(timeoutId);
+        const response = await fetch(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; GeminiGroundingMCP/1.0)",
+          },
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const html = await response.text();
+
+        // Extract readable content
+        const extracted = extract(html, {
+          charThreshold: 100,
+          url: url,
+        });
+
+        if (!extracted || !extracted.root) {
+          throw new Error("Failed to extract content from URL");
+        }
+
+        // Convert to Markdown
+        const markdown = toMarkdown(extracted.root);
+
+        // Add metadata
+        const result: ScrapedContent = {
+          url,
+          title: extracted.metadata?.title || "Scraped Content",
+          content: markdown,
+          excerpt:
+            markdown.slice(0, 500) + (markdown.length > 500 ? "..." : ""),
+          scrapedAt: new Date().toISOString(),
+        };
+
+        // Cache the result
+        this.cache.set(url, {
+          content: result,
+          timestamp: Date.now(),
+        });
+
+        return result;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error("Unknown error");
+        console.error(
+          `Failed to scrape ${url} (attempt ${attempt}/${maxRetries}):`,
+          lastError.message,
+        );
+
+        // If not the last attempt, wait before retrying
+        if (attempt < maxRetries) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 2 ** (attempt - 1) * 1000),
+          ); // Exponential backoff
+        }
       }
-
-      const html = await response.text();
-
-      // Extract readable content
-      const extracted = extract(html, {
-        charThreshold: 100,
-      });
-
-      if (!extracted || !extracted.root) {
-        throw new Error("Failed to extract content from URL");
-      }
-
-      // Convert to Markdown
-      const markdown = toMarkdown(extracted.root);
-
-      // Add metadata
-      const result: ScrapedContent = {
-        url,
-        title: "Scraped Content", // readabilityのextractはtitleを返さない
-        content: markdown,
-        excerpt: markdown.slice(0, 500) + (markdown.length > 500 ? "..." : ""),
-        scrapedAt: new Date().toISOString(),
-      };
-
-      // Cache the result
-      this.cache.set(url, {
-        content: result,
-        timestamp: Date.now(),
-      });
-
-      return result;
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error(`Failed to scrape ${url}:`, errorMessage);
-
-      // Return error result
-      return {
-        url,
-        title: "Error",
-        content: null,
-        excerpt: `Failed to scrape content: ${errorMessage}`,
-        error: errorMessage,
-        scrapedAt: new Date().toISOString(),
-      };
     }
+
+    // All retries failed, return error result
+    const errorMessage = lastError?.message || "Unknown error";
+    return {
+      url,
+      title: "Error",
+      content: null,
+      excerpt: `Failed to scrape content after ${maxRetries} attempts: ${errorMessage}`,
+      error: errorMessage,
+      scrapedAt: new Date().toISOString(),
+    };
   }
 
   async scrapeUrls(urls: string[]): Promise<ScrapedContent[]> {

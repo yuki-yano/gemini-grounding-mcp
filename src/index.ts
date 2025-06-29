@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -6,16 +8,21 @@ import {
   ListToolsRequestSchema,
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
-import { GeminiClient } from "./gemini/client.js";
-import type { BatchSearchResponse, SearchResult } from "./types/index.js";
+import { GeminiClient } from "./gemini/client";
+import type { BatchSearchResponse, SearchResult } from "./types/index";
+
+// Get package.json version
+const packageJson = JSON.parse(
+  readFileSync(join(__dirname, "..", "package.json"), "utf-8"),
+);
 
 // Initialize server
 const server = new Server(
   {
     name: "gemini-grounding",
     vendor: "gemini-grounding-mcp",
-    version: "1.0.0",
-    description: "MCP server for Gemini AI web search with grounding",
+    version: packageJson.version,
+    description: packageJson.description,
   },
   {
     capabilities: {
@@ -39,13 +46,13 @@ const TOOLS = [
   {
     name: "google_search",
     description:
-      "Search the web using Google via Gemini AI grounding and get AI-generated summaries with citations",
+      "Uses Google Search via Gemini AI grounding to find information and provide synthesized answers with citations. Returns AI-generated summaries rather than raw search results.",
     inputSchema: {
       type: "object",
       properties: {
         query: {
           type: "string",
-          description: "The search query",
+          description: "The search query to find information on the web",
         },
       },
       required: ["query"],
@@ -54,7 +61,7 @@ const TOOLS = [
   {
     name: "google_search_batch",
     description:
-      "Search multiple queries in parallel and optionally scrape content from results",
+      "Search multiple queries in parallel and optionally scrape content from results. Processes up to 10 queries simultaneously for comprehensive research.",
     inputSchema: {
       type: "object",
       properties: {
@@ -236,13 +243,13 @@ function formatBatchSearchResult(result: BatchSearchResponse): string {
           }
           if (content.content) {
             const contentPreview = content.content.slice(0, 200);
-            output += `- Content Preview: ${contentPreview}${content.content.length > 200 ? '...' : ''}\n`;
+            output += `- Content Preview: ${contentPreview}${content.content.length > 200 ? "..." : ""}\n`;
             output += `- Full Length: ${content.content.length} characters\n`;
           }
           output += "\n";
         }
       }
-      
+
       if (successCount > 0 || failureCount > 0) {
         output += `📊 **Scraping Stats**: ${successCount} succeeded, ${failureCount} failed\n\n`;
       }
