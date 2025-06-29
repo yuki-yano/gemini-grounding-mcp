@@ -185,6 +185,8 @@ export class GeminiClient {
               summary: searchResult.summary,
               searchResults: searchResult.searchResults,
               scrapedContent,
+              searchResultCount: searchResult.searchResults.length,
+              targetResultCount: 5,
             };
           } catch (error) {
             console.error(`Error processing query "${query}":`, error);

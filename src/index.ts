@@ -178,47 +178,76 @@ function formatSearchResult(result: SearchResult): string {
 
 // Format batch search result for display
 function formatBatchSearchResult(result: BatchSearchResponse): string {
-  let output = `Batch Search Results (${result.totalQueries} queries)\n`;
+  let output = `# Batch Search Results (${result.totalQueries} ${result.totalQueries === 1 ? 'query' : 'queries'})\n\n`;
   output += `${"=".repeat(50)}\n\n`;
 
+  let queryIndex = 0;
   for (const queryResult of result.results) {
-    output += `Query: "${queryResult.query}"\n`;
-    output += `${"-".repeat(40)}\n`;
+    queryIndex++;
+    output += `## Query ${queryIndex}: "${queryResult.query}"\n\n`;
 
     if (queryResult.error) {
-      output += `Error: ${queryResult.error}\n\n`;
+      output += `❌ **Error**: ${queryResult.error}\n\n`;
+      output += `${"-".repeat(50)}\n\n`;
       continue;
     }
 
+    // Summary with proper formatting
     if (queryResult.summary) {
-      output += `Summary: ${queryResult.summary}\n\n`;
+      output += `### Summary\n\n${queryResult.summary}\n\n`;
     }
 
+    // Search results with count indicator
     if (queryResult.searchResults && queryResult.searchResults.length > 0) {
-      output += "Search Results:\n";
+      const resultCount = queryResult.searchResultCount || queryResult.searchResults.length;
+      const targetCount = queryResult.targetResultCount || 5;
+      output += `### Search Results (${resultCount}/${targetCount})\n\n`;
+      
       for (const [idx, result] of queryResult.searchResults.entries()) {
-        output += `${idx + 1}. ${result.title}\n`;
-        output += `   URL: ${result.url}\n`;
+        output += `**${idx + 1}. ${result.title}**\n`;
+        output += `- URL: ${result.url}\n`;
         if (result.snippet) {
-          output += `   Snippet: ${result.snippet}\n`;
+          output += `- Snippet: ${result.snippet}\n`;
         }
+        output += "\n";
       }
-      output += "\n";
     }
 
+    // Scraped content with better formatting
     if (queryResult.scrapedContent && queryResult.scrapedContent.length > 0) {
-      output += "Scraped Content:\n";
+      output += `### Scraped Content\n\n`;
+      
+      let successCount = 0;
+      let failureCount = 0;
+      
       for (const content of queryResult.scrapedContent) {
-        output += `- ${content.title} (${content.url})\n`;
         if (content.error) {
-          output += `  Error: ${content.error}\n`;
-        } else if (content.excerpt) {
-          output += `  Excerpt: ${content.excerpt}\n`;
+          failureCount++;
+          output += `#### ❌ Failed: ${content.title}\n`;
+          output += `- URL: ${content.url}\n`;
+          output += `- Error: ${content.error}\n\n`;
+        } else {
+          successCount++;
+          output += `#### ✅ ${content.title}\n`;
+          output += `- URL: ${content.url}\n`;
+          if (content.excerpt) {
+            output += `- Excerpt: ${content.excerpt}\n`;
+          }
+          if (content.content) {
+            const contentPreview = content.content.slice(0, 200);
+            output += `- Content Preview: ${contentPreview}${content.content.length > 200 ? '...' : ''}\n`;
+            output += `- Full Length: ${content.content.length} characters\n`;
+          }
+          output += "\n";
         }
+      }
+      
+      if (successCount > 0 || failureCount > 0) {
+        output += `📊 **Scraping Stats**: ${successCount} succeeded, ${failureCount} failed\n\n`;
       }
     }
 
-    output += "\n";
+    output += `${"-".repeat(50)}\n\n`;
   }
 
   return output;

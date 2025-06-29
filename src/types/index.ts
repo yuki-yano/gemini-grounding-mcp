@@ -31,6 +31,8 @@ export interface BatchSearchResult {
   searchResults?: SearchResultDetail[];
   scrapedContent?: ScrapedContent[];
   error?: string;
+  searchResultCount?: number;
+  targetResultCount?: number;
 }
 
 export interface BatchSearchResponse {

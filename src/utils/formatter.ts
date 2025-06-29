@@ -42,6 +42,8 @@ export class Formatter {
         searchResults: result.searchResults || [],
         scrapedContent: result.scrapedContent || [],
         error: result.error,
+        searchResultCount: result.searchResultCount,
+        targetResultCount: result.targetResultCount,
       })),
     };
   }
