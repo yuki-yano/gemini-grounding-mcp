@@ -6,7 +6,8 @@ A Model Context Protocol (MCP) server that provides AI-powered web search using 
 
 - **AI-Powered Search**: Uses Gemini AI to search the web and provide synthesized answers
 - **Smart Summaries**: Returns AI-generated summaries with proper citations and source URLs
-- **Dual Authentication**: Supports both OAuth (recommended) and API key authentication
+- **Batch Search**: Process multiple queries in parallel with optional content scraping
+- **Dual Authentication**: Supports OAuth (recommended) and API key authentication
 - **MCP Compatible**: Works seamlessly with Claude Code and other MCP clients
 - **Inspired by**: [mcp-gemini-grounding](https://github.com/ml0-1337/mcp-gemini-grounding) (Go implementation)
 
@@ -14,9 +15,23 @@ A Model Context Protocol (MCP) server that provides AI-powered web search using 
 
 - Node.js 18 or later
 - pnpm (recommended) or npm
-- Gemini API access (either OAuth credentials or API key)
+- Gemini API access (OAuth credentials recommended, or API key)
 
 ## Installation
+
+### Quick Start with npx (Recommended)
+
+You can run the server directly without installation:
+
+```bash
+# Run as MCP server
+npx gemini-grounding-mcp
+
+# Test with CLI interface
+npx gemini-grounding-mcp --cli
+```
+
+### Manual Installation
 
 ```bash
 # Clone the repository
@@ -27,14 +42,45 @@ cd gemini-grounding-mcp
 pnpm install
 ```
 
+### Global Installation
+
+```bash
+# Install globally
+npm install -g gemini-grounding-mcp
+
+# Run the server
+gemini-grounding-mcp
+```
+
 ## Configuration
 
 ### Authentication
 
 The server supports two authentication methods:
 
-#### 1. API Key (Recommended)
-Set the `GEMINI_API_KEY` environment variable:
+#### 1. OAuth Credentials (Recommended)
+OAuth is the recommended authentication method as it provides better security and doesn't require managing API keys.
+
+The server uses OAuth credentials from `~/.gemini/oauth_creds.json`, which are created when you authenticate with the Gemini CLI:
+
+```bash
+# Install Gemini CLI if not already installed
+npm install -g @google/gemini-cli
+
+# Authenticate with your Google account
+gemini auth login
+```
+
+This will open your browser for authentication and save the credentials securely.
+
+**Benefits of OAuth:**
+- No API keys to manage or expose
+- Automatic token refresh
+- Better security through standard OAuth flow
+- Uses Google Code Assist API with enhanced capabilities
+
+#### 2. API Key (Alternative)
+If you prefer using an API key or OAuth is not available in your environment:
 
 ```bash
 # Create .env file
@@ -46,30 +92,46 @@ GEMINI_API_KEY=your-api-key-here
 
 Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
 
-#### 2. OAuth Credentials (Experimental)
-The server can use OAuth credentials from `~/.gemini/oauth_creds.json` if available.
-These are created when you authenticate with the Gemini CLI:
-
-```bash
-# Install Gemini CLI if not already installed
-npm install -g @google/generative-ai
-
-# Authenticate
-gemini auth login
-```
-
-**Note**: OAuth authentication uses the Google Code Assist API, which is experimental and may have different behavior than the standard Gemini API. For production use, we recommend using API key authentication.
+**Note**: While API keys are simpler to set up, OAuth is recommended for better security and features.
 
 ### Claude Code Configuration
 
 Add to your Claude Code settings:
+
+#### Option 1: Using npx (simplest)
+
+```json
+{
+  "mcpServers": {
+    "gemini-grounding": {
+      "command": "npx",
+      "args": ["gemini-grounding-mcp"]
+    }
+  }
+}
+```
+
+#### Option 2: Local installation
 
 ```json
 {
   "mcpServers": {
     "gemini-grounding": {
       "command": "node",
-      "args": ["/path/to/gemini-grounding-mcp/node_modules/.bin/tsx", "/path/to/gemini-grounding-mcp/src/index.ts"],
+      "args": ["/path/to/gemini-grounding-mcp/node_modules/.bin/tsx", "/path/to/gemini-grounding-mcp/src/index.ts"]
+    }
+  }
+}
+```
+
+**Note**: If you're using API key authentication instead of OAuth, add the `env` section to either configuration:
+
+```json
+{
+  "mcpServers": {
+    "gemini-grounding": {
+      "command": "npx",
+      "args": ["gemini-grounding-mcp"],
       "env": {
         "GEMINI_API_KEY": "$GEMINI_API_KEY"
       }
@@ -78,19 +140,21 @@ Add to your Claude Code settings:
 }
 ```
 
-**Note**: The `env` section is optional if you're using OAuth authentication.
-
 ## Usage
 
-Once configured, the `google_search` tool will be available in Claude Code. You can use it by asking Claude to search and summarize information:
+Once configured, two tools will be available in Claude Code:
 
-### Examples
+### 1. Single Search Tool (`google_search`)
+
+Use this for single queries when you need to search and summarize information:
+
+#### Examples
 
 - "Search for the latest developments in quantum computing"
 - "Find information about TypeScript 5.0 new features"
 - "What are the current trends in sustainable energy?"
 
-### Tool Schema
+#### Tool Schema
 
 ```json
 {
@@ -109,9 +173,66 @@ Once configured, the `google_search` tool will be available in Claude Code. You 
 }
 ```
 
+### 2. Batch Search Tool (`google_search_batch`)
+
+Use this for multiple related queries when you need comprehensive information. This tool processes queries in parallel for faster results and can optionally scrape full content from search results.
+
+#### Examples
+
+```javascript
+// Research multiple aspects of a topic
+["next.js 15 data fetching best practices 2025",
+ "next.js 15 server component data fetching",
+ "next.js 15 client component data fetching"]
+
+// Compare different technologies
+["react vs vue performance 2025",
+ "angular vs react enterprise applications",
+ "svelte advantages and disadvantages"]
+```
+
+#### Tool Schema
+
+```json
+{
+  "name": "google_search_batch",
+  "description": "Search multiple queries in parallel and optionally scrape content from results. Processes up to 10 queries simultaneously for comprehensive research.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "queries": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Array of search queries (max 10)",
+        "minItems": 1,
+        "maxItems": 10
+      },
+      "scrapeContent": {
+        "type": "boolean",
+        "description": "Whether to scrape full content from search result URLs",
+        "default": true
+      }
+    },
+    "required": ["queries"]
+  }
+}
+```
+
+#### Benefits of Batch Search
+
+- **Parallel Processing**: All queries are processed simultaneously for faster results
+- **Comprehensive Research**: Get multiple perspectives on a topic in one request
+- **Full Content Access**: Automatically scrapes and extracts main content from search results
+- **Smart Retries**: Failed scraping attempts are automatically retried with exponential backoff
+- **Cost Effective**: Multiple searches count as separate API calls but are processed efficiently
+
 ## Output Format
 
-The tool returns search results with:
+### Single Search Output
+
+The `google_search` tool returns:
 - Main content with inline citations (e.g., [1], [2])
 - List of sources with titles and URLs
 - Proper formatting for easy reading
@@ -125,6 +246,41 @@ TypeScript 5.0 introduces several major features including decorators, const typ
 Sources:
 [1] TypeScript 5.0 Release Notes - Microsoft (https://devblogs.microsoft.com/typescript/announcing-typescript-5-0/)
 [2] What's New in TypeScript 5.0 - TypeScript Handbook (https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html)
+```
+
+### Batch Search Output
+
+The `google_search_batch` tool returns structured results for each query:
+- Query-specific summaries with citations
+- Search results count (e.g., "3/5" indicating 3 results found out of target 5)
+- Scraped content from each URL (when enabled)
+- Clear separation between different queries
+
+Example output:
+```
+Batch Search Results (3 queries)
+==================================================
+
+Query: "next.js 15 data fetching"
+----------------------------------------
+Summary: Next.js 15 introduces improved data fetching with React Server Components...
+
+Search Results (5/5):
+1. Next.js 15 Data Fetching Guide
+   URL: https://nextjs.org/docs/data-fetching
+   Snippet: Comprehensive guide to data fetching patterns...
+
+2. Server Components in Next.js 15
+   URL: https://blog.example.com/nextjs-15-server
+   Snippet: Deep dive into server component architecture...
+
+Scraped Content:
+- Next.js 15 Data Fetching Guide (https://nextjs.org/docs/data-fetching)
+  Excerpt: Next.js 15 revolutionizes data fetching with...
+  
+Query: "next.js 15 server components"
+----------------------------------------
+[Additional results...]
 ```
 
 ## Development
@@ -176,10 +332,13 @@ gemini-grounding-mcp/
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `GEMINI_API_KEY` | Gemini API Key (optional if using OAuth) | - |
+| `GEMINI_API_KEY` | Gemini API Key (only needed if not using OAuth) | - |
 | `NODE_ENV` | Environment mode | `production` |
 | `BATCH_SIZE` | Number of queries to process concurrently in batch mode | `5` |
 | `RATE_LIMIT_DELAY` | Delay in milliseconds between batch requests | `100` |
+| `CACHE_TTL` | Cache time-to-live in seconds for scraped content | `3600` (1 hour) |
+| `SCRAPE_TIMEOUT` | Timeout in milliseconds for each scraping attempt | `10000` (10 seconds) |
+| `SCRAPE_RETRIES` | Number of retry attempts for failed scraping | `3` |
 
 ## Technology Stack
 
@@ -194,12 +353,17 @@ gemini-grounding-mcp/
 
 ### Authentication Errors
 
-1. Check OAuth credentials exist:
+1. **For OAuth (recommended)**: Check credentials exist:
 ```bash
 ls ~/.gemini/oauth_creds.json
 ```
 
-2. Or ensure API key is set:
+If not found, authenticate with:
+```bash
+gemini auth login
+```
+
+2. **For API key**: Ensure it's set:
 ```bash
 echo $GEMINI_API_KEY
 ```
