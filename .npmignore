@@ -1,0 +1,53 @@
+# Source files (only include dist)
+src/
+*.ts
+!dist/**/*.d.ts
+
+# Development files
+.env
+.env.local
+.env.*
+
+# Configuration files
+tsconfig.json
+biome.json
+.gitignore
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Test files
+test/
+tests/
+*.test.ts
+*.spec.ts
+
+# Development dependencies
+node_modules/
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Editor directories
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.log
+*.tsbuildinfo
+
+# Git
+.git/
+.github/
+
+# AI directories
+ai/
+
+# Example files
+.env.example
