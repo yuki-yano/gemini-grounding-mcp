@@ -16,8 +16,9 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "prepublishOnly": "pnpm run typecheck && pnpm run lint",
+    "build": "tsdown src/index.ts --outdir dist --format cjs",
+    "build:tsc": "tsc",
+    "prepublishOnly": "pnpm run typecheck && pnpm run lint && pnpm run build",
     "lint": "biome check .",
     "format": "biome format --write .",
     "check": "biome check --write .",
@@ -62,6 +63,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.0.6",
     "@types/node": "^24.0.7",
+    "tsdown": "^0.12.9",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }
