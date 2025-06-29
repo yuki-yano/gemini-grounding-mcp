@@ -1,0 +1,42 @@
+{
+  "name": "gemini-grounding-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Gemini AI web search with grounding",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "prepublishOnly": "pnpm run typecheck && pnpm run lint",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "check": "biome check --write .",
+    "typecheck": "tsc --noEmit",
+    "cli": "tsx src/cli.ts"
+  },
+  "keywords": [
+    "mcp",
+    "gemini",
+    "ai",
+    "search",
+    "grounding"
+  ],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.12.4",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@mizchi/readability": "^0.6.8",
+    "@modelcontextprotocol/sdk": "^1.13.2",
+    "dotenv": "^17.0.0",
+    "google-auth-library": "^10.1.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.6",
+    "@types/node": "^24.0.7",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}
