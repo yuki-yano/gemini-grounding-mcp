@@ -178,7 +178,7 @@ function formatSearchResult(result: SearchResult): string {
 
 // Format batch search result for display
 function formatBatchSearchResult(result: BatchSearchResponse): string {
-  let output = `# Batch Search Results (${result.totalQueries} ${result.totalQueries === 1 ? 'query' : 'queries'})\n\n`;
+  let output = `# Batch Search Results (${result.totalQueries} ${result.totalQueries === 1 ? "query" : "queries"})\n\n`;
   output += `${"=".repeat(50)}\n\n`;
 
   let queryIndex = 0;
@@ -199,10 +199,11 @@ function formatBatchSearchResult(result: BatchSearchResponse): string {
 
     // Search results with count indicator
     if (queryResult.searchResults && queryResult.searchResults.length > 0) {
-      const resultCount = queryResult.searchResultCount || queryResult.searchResults.length;
+      const resultCount =
+        queryResult.searchResultCount || queryResult.searchResults.length;
       const targetCount = queryResult.targetResultCount || 5;
       output += `### Search Results (${resultCount}/${targetCount})\n\n`;
-      
+
       for (const [idx, result] of queryResult.searchResults.entries()) {
         output += `**${idx + 1}. ${result.title}**\n`;
         output += `- URL: ${result.url}\n`;
@@ -216,10 +217,10 @@ function formatBatchSearchResult(result: BatchSearchResponse): string {
     // Scraped content with better formatting
     if (queryResult.scrapedContent && queryResult.scrapedContent.length > 0) {
       output += `### Scraped Content\n\n`;
-      
+
       let successCount = 0;
       let failureCount = 0;
-      
+
       for (const content of queryResult.scrapedContent) {
         if (content.error) {
           failureCount++;
