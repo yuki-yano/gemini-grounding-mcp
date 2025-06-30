@@ -62,6 +62,26 @@ export interface SearchOptions {
   maxContentLength?: number;
 }
 
+export interface UnifiedSearchResult {
+  query: string;
+  summary: string;
+  citations: Citation[];
+  searchResults?: SearchResultDetail[];
+  scrapedContent?: ScrapedContent[];
+  error?: string;
+  metadata?: {
+    searchResultCount?: number;
+    targetResultCount?: number;
+    processingTime?: number;
+  };
+}
+
+export interface UnifiedSearchResponse {
+  results: UnifiedSearchResult[];
+  totalQueries: number;
+  options: SearchOptions;
+}
+
 // Enhanced citation formats
 export interface EnhancedCitation extends Citation {
   excerpt?: string;      // Relevant excerpt from the source
