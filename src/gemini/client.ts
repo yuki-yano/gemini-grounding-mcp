@@ -42,7 +42,7 @@ export class GeminiClient {
 
   constructor() {
     this.auth = new AuthConfig();
-    this.scraper = new Scraper();
+    this.scraper = new Scraper(this);
     this._initializeModel();
 
     // Initialize Code Assist client for OAuth
@@ -61,6 +61,25 @@ export class GeminiClient {
         model: "gemini-2.5-flash",
         tools: [searchTool],
       });
+    }
+  }
+
+  async summarize(text: string, maxLength = 500): Promise<string> {
+    try {
+      const prompt = `Please provide a concise summary of the following text in about ${maxLength} characters. Focus on the main points and key information:\n\n${text}`;
+      
+      if (this.auth.isApiKey() && this.model) {
+        const result = await this.model.generateContent(prompt);
+        return result.response.text();
+      } else {
+        // Use OAuth path
+        const response = await this._oauthRequest(prompt);
+        return response.candidates?.[0]?.content?.parts?.[0]?.text || "Summary generation failed";
+      }
+    } catch (error) {
+      console.error("Summarization error:", error);
+      // Fallback to excerpt if summarization fails
+      return text.slice(0, maxLength) + "...";
     }
   }
 
@@ -251,6 +270,20 @@ export class GeminiClient {
       console.error("Search details error:", error);
       throw error;
     }
+  }
+
+  private async _oauthRequest(prompt: string): Promise<GeminiOAuthResponse> {
+    if (!this.codeAssistClient) {
+      throw new Error("Code Assist client not initialized");
+    }
+
+    // Use Code Assist API for general requests (without grounding)
+    const response = await this.codeAssistClient.generateContent(
+      "gemini-2.5-flash",
+      prompt,
+    );
+
+    return response as GeminiOAuthResponse;
   }
 
   private async _oauthSearch(query: string): Promise<GeminiOAuthResponse> {

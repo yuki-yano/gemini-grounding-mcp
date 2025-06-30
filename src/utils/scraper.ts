@@ -12,8 +12,10 @@ export class Scraper {
   private cacheTTL: number;
   private scrapeTimeout: number;
   private scrapeRetries: number;
+  private geminiClient?: any;
 
-  constructor() {
+  constructor(geminiClient?: any) {
+    this.geminiClient = geminiClient;
     this.cacheTTL = Number.parseInt(process.env.CACHE_TTL || "3600", 10) * 1000;
     this.scrapeTimeout = Number.parseInt(
       process.env.SCRAPE_TIMEOUT || "10000",
@@ -22,8 +24,17 @@ export class Scraper {
     this.scrapeRetries = Number.parseInt(process.env.SCRAPE_RETRIES || "3", 10);
   }
 
-  async scrapeUrl(url: string, retries?: number): Promise<ScrapedContent> {
-    const maxRetries = retries ?? this.scrapeRetries;
+  async scrapeUrl(
+    url: string,
+    options?: {
+      retries?: number;
+      contentMode?: "excerpt" | "summary" | "full";
+      maxContentLength?: number;
+    },
+  ): Promise<ScrapedContent> {
+    const maxRetries = options?.retries ?? this.scrapeRetries;
+    const contentMode = options?.contentMode ?? "full";
+    const maxContentLength = options?.maxContentLength ?? 10000;
 
     // Check cache first
     const cached = this.cache.get(url);
@@ -67,15 +78,82 @@ export class Scraper {
         }
 
         // Convert to Markdown
-        const markdown = toMarkdown(extracted.root);
+        const fullMarkdown = toMarkdown(extracted.root);
+        
+        // Process content based on mode
+        let processedContent: string;
+        let excerpt: string;
+        
+        switch (contentMode) {
+          case "excerpt":
+            // Use Gemini to create a 1000-character summary
+            if (this.geminiClient && fullMarkdown.length > 1500) {
+              try {
+                processedContent = await this.geminiClient.summarize(fullMarkdown, 1000);
+                excerpt = processedContent.slice(0, 200) + (processedContent.length > 200 ? "..." : "");
+              } catch (error) {
+                console.error("Failed to generate AI excerpt, falling back to truncation:", error);
+                // Fallback to simple truncation
+                processedContent = fullMarkdown.slice(0, 1000);
+                if (fullMarkdown.length > 1000) {
+                  processedContent += "...";
+                }
+                excerpt = processedContent.slice(0, 500) + (processedContent.length > 500 ? "..." : "");
+              }
+            } else {
+              // For short content or no Gemini client, just truncate
+              processedContent = fullMarkdown.slice(0, 1000);
+              if (fullMarkdown.length > 1000) {
+                processedContent += "...";
+              }
+              excerpt = processedContent.slice(0, 500) + (processedContent.length > 500 ? "..." : "");
+            }
+            break;
+          
+          case "summary":
+            // Use Gemini to create a 3000-character summary
+            if (this.geminiClient && fullMarkdown.length > 3500) {
+              try {
+                processedContent = await this.geminiClient.summarize(fullMarkdown, 3000);
+                excerpt = processedContent.slice(0, 300) + (processedContent.length > 300 ? "..." : "");
+              } catch (error) {
+                console.error("Failed to generate AI summary, falling back to truncation:", error);
+                // Fallback to truncation
+                processedContent = fullMarkdown.slice(0, 3000);
+                if (fullMarkdown.length > 3000) {
+                  processedContent += "\n\n[Content truncated for summary mode]";
+                }
+                excerpt = fullMarkdown.slice(0, 500) + (fullMarkdown.length > 500 ? "..." : "");
+              }
+            } else {
+              // For short content or no Gemini client, just truncate
+              processedContent = fullMarkdown.slice(0, 3000);
+              if (fullMarkdown.length > 3000) {
+                processedContent += "\n\n[Content truncated for summary mode]";
+              }
+              excerpt = fullMarkdown.slice(0, 500) + (fullMarkdown.length > 500 ? "..." : "");
+            }
+            break;
+          
+          case "full":
+          default:
+            // Apply maxContentLength if specified
+            if (fullMarkdown.length > maxContentLength) {
+              processedContent = fullMarkdown.slice(0, maxContentLength);
+              processedContent += `\n\n[Content truncated at ${maxContentLength} characters]`;
+            } else {
+              processedContent = fullMarkdown;
+            }
+            excerpt = fullMarkdown.slice(0, 500) + (fullMarkdown.length > 500 ? "..." : "");
+            break;
+        }
 
         // Add metadata
         const result: ScrapedContent = {
           url,
           title: extracted.metadata?.title || "Scraped Content",
-          content: markdown,
-          excerpt:
-            markdown.slice(0, 500) + (markdown.length > 500 ? "..." : ""),
+          content: processedContent,
+          excerpt,
           scrapedAt: new Date().toISOString(),
         };
 
@@ -114,7 +192,13 @@ export class Scraper {
     };
   }
 
-  async scrapeUrls(urls: string[]): Promise<ScrapedContent[]> {
+  async scrapeUrls(
+    urls: string[],
+    options?: {
+      contentMode?: "excerpt" | "summary" | "full";
+      maxContentLength?: number;
+    },
+  ): Promise<ScrapedContent[]> {
     const batchSize = Number.parseInt(process.env.BATCH_SIZE || "5", 10);
     const results: ScrapedContent[] = [];
 
@@ -122,7 +206,7 @@ export class Scraper {
     for (let i = 0; i < urls.length; i += batchSize) {
       const batch = urls.slice(i, i + batchSize);
       const batchResults = await Promise.all(
-        batch.map((url) => this.scrapeUrl(url)),
+        batch.map((url) => this.scrapeUrl(url, options)),
       );
       results.push(...batchResults);
 
