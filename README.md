@@ -7,6 +7,8 @@ A Model Context Protocol (MCP) server that provides AI-powered web search using 
 - **AI-Powered Search**: Uses Gemini AI to search the web and provide synthesized answers
 - **Smart Summaries**: Returns AI-generated summaries with proper citations and source URLs
 - **Batch Search**: Process multiple queries in parallel with optional content scraping
+- **Flexible Content Modes**: Choose between AI-generated excerpts (1000 chars), summaries (3000 chars), or full content
+- **Enhanced Citations**: Structured citation format with context, confidence scores, and intelligent text segmentation
 - **Dual Authentication**: Supports OAuth (recommended) and API key authentication
 - **MCP Compatible**: Works seamlessly with Claude Code and other MCP clients
 - **Inspired by**: [mcp-gemini-grounding](https://github.com/ml0-1337/mcp-gemini-grounding) (Go implementation)
@@ -166,6 +168,16 @@ Use this for single queries when you need to search and summarize information:
       "query": {
         "type": "string",
         "description": "The search query to find information on the web"
+      },
+      "includeSearchResults": {
+        "type": "boolean",
+        "description": "Include raw search results in addition to AI summary",
+        "default": false
+      },
+      "maxResults": {
+        "type": "number",
+        "description": "Maximum number of search results to return",
+        "default": 5
       }
     },
     "required": ["query"]
@@ -213,6 +225,17 @@ Use this for multiple related queries when you need comprehensive information. T
         "type": "boolean",
         "description": "Whether to scrape full content from search result URLs",
         "default": true
+      },
+      "contentMode": {
+        "type": "string",
+        "enum": ["excerpt", "summary", "full"],
+        "description": "Content extraction mode: excerpt (AI summary ~1000 chars), summary (AI summary ~3000 chars), or full",
+        "default": "full"
+      },
+      "maxContentLength": {
+        "type": "number",
+        "description": "Maximum content length for full mode (default: 10000)",
+        "default": 10000
       }
     },
     "required": ["queries"]
@@ -220,11 +243,29 @@ Use this for multiple related queries when you need comprehensive information. T
 }
 ```
 
+#### Content Modes
+
+When using `google_search_batch`, you can control how scraped content is processed:
+
+- **`excerpt`**: AI-generated summary limited to ~1000 characters - ideal for quick overviews
+- **`summary`**: AI-generated summary limited to ~3000 characters - balanced detail and brevity
+- **`full`**: Complete content up to `maxContentLength` - for comprehensive analysis
+
+Example with content mode:
+```javascript
+// Get concise AI summaries for multiple articles
+{
+  "queries": ["react hooks best practices", "react performance optimization"],
+  "scrapeContent": true,
+  "contentMode": "excerpt"  // Returns 1000-char AI summaries
+}
+```
+
 #### Benefits of Batch Search
 
 - **Parallel Processing**: All queries are processed simultaneously for faster results
 - **Comprehensive Research**: Get multiple perspectives on a topic in one request
-- **Full Content Access**: Automatically scrapes and extracts main content from search results
+- **Flexible Content Control**: Choose between AI summaries or full content based on your needs
 - **Smart Retries**: Failed scraping attempts are automatically retried with exponential backoff
 - **Cost Effective**: Multiple searches count as separate API calls but are processed efficiently
 
@@ -235,6 +276,10 @@ Use this for multiple related queries when you need comprehensive information. T
 The `google_search` tool returns:
 - Main content with inline citations (e.g., [1], [2])
 - List of sources with titles and URLs
+- Enhanced citation information including:
+  - Context where each citation was used
+  - Confidence scores for each source (0-1 scale)
+  - Relevant excerpts from the sources
 - Proper formatting for easy reading
 
 Example output:
@@ -251,9 +296,13 @@ Sources:
 ### Batch Search Output
 
 The `google_search_batch` tool returns structured results for each query:
-- Query-specific summaries with citations
+- Query-specific summaries with inline citations
+- Citations section with source references
 - Search results count (e.g., "3/5" indicating 3 results found out of target 5)
 - Scraped content from each URL (when enabled)
+  - **Excerpt mode**: AI-generated summary limited to ~1000 characters
+  - **Summary mode**: AI-generated summary limited to ~3000 characters
+  - **Full mode**: Complete content with optional truncation
 - Clear separation between different queries
 
 Example output:
@@ -263,7 +312,13 @@ Batch Search Results (3 queries)
 
 Query: "next.js 15 data fetching"
 ----------------------------------------
-Summary: Next.js 15 introduces improved data fetching with React Server Components...
+Summary: Next.js 15 introduces improved data fetching with React Server Components[1]. The new approach simplifies data management and improves performance[2]...
+
+### Citations
+[1] Next.js 15 Data Fetching Guide
+    https://nextjs.org/docs/data-fetching
+[2] Server Components in Next.js 15
+    https://blog.example.com/nextjs-15-server
 
 Search Results (5/5):
 1. Next.js 15 Data Fetching Guide
@@ -276,7 +331,7 @@ Search Results (5/5):
 
 Scraped Content:
 - Next.js 15 Data Fetching Guide (https://nextjs.org/docs/data-fetching)
-  Excerpt: Next.js 15 revolutionizes data fetching with...
+  Excerpt: Next.js 15 revolutionizes data fetching with React Server Components, enabling seamless integration between server and client rendering...
   
 Query: "next.js 15 server components"
 ----------------------------------------
@@ -320,7 +375,8 @@ gemini-grounding-mcp/
 │   │   └── gemini.ts      # Gemini-specific types
 │   └── utils/             # Utility functions
 │       ├── formatter.ts   # Response formatting
-│       └── scraper.ts     # Web content scraping
+│       ├── scraper.ts     # Web content scraping
+│       └── citation-parser.ts  # Citation parsing and text segmentation
 ├── .env.example           # Environment variables template
 ├── biome.json            # Biome configuration
 ├── package.json
