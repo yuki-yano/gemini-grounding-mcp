@@ -67,35 +67,38 @@ export class GeminiClient {
   async summarize(text: string, maxLength = 500): Promise<string> {
     try {
       const prompt = `Please provide a concise summary of the following text in about ${maxLength} characters. Focus on the main points and key information:\n\n${text}`;
-      
+
       if (this.auth.isApiKey() && this.model) {
         const result = await this.model.generateContent(prompt);
         return result.response.text();
       } else {
         // Use OAuth path
         const response = await this._oauthRequest(prompt);
-        return response.candidates?.[0]?.content?.parts?.[0]?.text || "Summary generation failed";
+        return (
+          response.candidates?.[0]?.content?.parts?.[0]?.text ||
+          "Summary generation failed"
+        );
       }
     } catch (error) {
       console.error("Summarization error:", error);
       // Fallback to excerpt if summarization fails
-      return text.slice(0, maxLength) + "...";
+      return `${text.slice(0, maxLength)}...`;
     }
   }
 
   async searchWithOptions(
     query: string,
-    options?: {
+    _options?: {
       includeSearchResults?: boolean;
       maxResults?: number;
     },
   ): Promise<SearchResult | ErrorResponse> {
     // For now, call the regular search and we'll enhance it later
     const result = await this.search(query);
-    
+
     // If includeSearchResults is requested, we need to fetch search results
     // This will be implemented after we refactor the search functionality
-    
+
     return result;
   }
 

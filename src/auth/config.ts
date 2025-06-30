@@ -41,9 +41,9 @@ export class AuthConfig {
         this.authMethod = "oauth";
 
         // Initialize OAuth2 client
-        // The OAuth2Client will handle token refresh using the refresh token
-        // from ~/.gemini/oauth_creds.json
-        this.oauth2Client = new OAuth2Client("", "");
+        // The OAuth2Client will use the token from ~/.gemini/oauth_creds.json
+        // Token refresh is handled by the gemini CLI
+        this.oauth2Client = new OAuth2Client();
         return;
       }
     } catch (_error) {
