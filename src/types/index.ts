@@ -28,6 +28,7 @@ export interface ScrapedContent {
 export interface BatchSearchResult {
   query: string;
   summary?: string;
+  citations?: Citation[];
   searchResults?: SearchResultDetail[];
   scrapedContent?: ScrapedContent[];
   error?: string;
@@ -50,6 +51,15 @@ export interface ErrorResponse {
 export interface AuthMethod {
   type: "api-key" | "oauth";
   value: string;
+}
+
+// Unified search interfaces
+export interface SearchOptions {
+  includeSearchResults?: boolean;
+  maxResults?: number;
+  scrapeContent?: boolean;
+  contentMode?: "excerpt" | "summary" | "full";
+  maxContentLength?: number;
 }
 
 // Enhanced citation formats

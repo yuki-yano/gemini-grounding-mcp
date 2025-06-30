@@ -83,6 +83,22 @@ export class GeminiClient {
     }
   }
 
+  async searchWithOptions(
+    query: string,
+    options?: {
+      includeSearchResults?: boolean;
+      maxResults?: number;
+    },
+  ): Promise<SearchResult | ErrorResponse> {
+    // For now, call the regular search and we'll enhance it later
+    const result = await this.search(query);
+    
+    // If includeSearchResults is requested, we need to fetch search results
+    // This will be implemented after we refactor the search functionality
+    
+    return result;
+  }
+
   async search(query: string): Promise<SearchResult | ErrorResponse> {
     try {
       let response: GeminiResponse;
@@ -168,7 +184,11 @@ export class GeminiClient {
 
   async batchSearch(
     queries: string[],
-    options = { scrapeContent: true },
+    options: {
+      scrapeContent?: boolean;
+      contentMode?: "excerpt" | "summary" | "full";
+      maxContentLength?: number;
+    } = { scrapeContent: true },
   ): Promise<BatchSearchResponse> {
     const results: BatchSearchResult[] = [];
     const DEFAULT_BATCH_SIZE = 5;
@@ -196,12 +216,16 @@ export class GeminiClient {
             // Scrape content if requested
             const scrapedContent =
               options.scrapeContent && urls.length > 0
-                ? await this.scraper.scrapeUrls(urls)
+                ? await this.scraper.scrapeUrls(urls, {
+                    contentMode: options.contentMode,
+                    maxContentLength: options.maxContentLength,
+                  })
                 : [];
 
             return {
               query,
               summary: searchResult.summary,
+              citations: searchResult.citations,
               searchResults: searchResult.searchResults,
               scrapedContent,
               searchResultCount: searchResult.searchResults.length,
@@ -272,20 +296,6 @@ export class GeminiClient {
     }
   }
 
-  private async _oauthRequest(prompt: string): Promise<GeminiOAuthResponse> {
-    if (!this.codeAssistClient) {
-      throw new Error("Code Assist client not initialized");
-    }
-
-    // Use Code Assist API for general requests (without grounding)
-    const response = await this.codeAssistClient.generateContent(
-      "gemini-2.5-flash",
-      prompt,
-    );
-
-    return response as GeminiOAuthResponse;
-  }
-
   private async _oauthSearch(query: string): Promise<GeminiOAuthResponse> {
     if (!this.codeAssistClient) {
       throw new Error("Code Assist client not initialized");
@@ -298,6 +308,20 @@ export class GeminiClient {
     );
 
     // Response from Code Assist API may have nested structure
+    return response as GeminiOAuthResponse;
+  }
+
+  private async _oauthRequest(prompt: string): Promise<GeminiOAuthResponse> {
+    if (!this.codeAssistClient) {
+      throw new Error("Code Assist client not initialized");
+    }
+
+    // Use Code Assist API for general requests (without grounding)
+    const response = await this.codeAssistClient.generateContent(
+      "gemini-2.5-flash",
+      prompt,
+    );
+
     return response as GeminiOAuthResponse;
   }
 

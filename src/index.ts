@@ -54,6 +54,16 @@ const TOOLS = [
           type: "string",
           description: "The search query to find information on the web",
         },
+        includeSearchResults: {
+          type: "boolean",
+          description: "Include raw search results in addition to AI summary",
+          default: false,
+        },
+        maxResults: {
+          type: "number",
+          description: "Maximum number of search results to return",
+          default: 5,
+        },
       },
       required: ["query"],
     },
@@ -78,6 +88,17 @@ const TOOLS = [
           type: "boolean",
           description: "Whether to scrape full content from search result URLs",
           default: true,
+        },
+        contentMode: {
+          type: "string",
+          enum: ["excerpt", "summary", "full"],
+          description: "Content extraction mode: excerpt (AI summary ~1000 chars), summary (AI summary ~3000 chars), or full",
+          default: "full",
+        },
+        maxContentLength: {
+          type: "number",
+          description: "Maximum content length for full mode (default: 10000)",
+          default: 10000,
         },
       },
       required: ["queries"],
@@ -106,7 +127,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           );
         }
 
-        const result = await geminiClient.search(args.query);
+        const result = await geminiClient.searchWithOptions(args.query, {
+          includeSearchResults: args.includeSearchResults,
+          maxResults: args.maxResults,
+        });
 
         if ("error" in result && result.error) {
           throw new McpError(ErrorCode.InternalError, result.message);
@@ -140,6 +164,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const scrapeContent = args.scrapeContent !== false;
         const result = await geminiClient.batchSearch(args.queries, {
           scrapeContent,
+          contentMode: args.contentMode,
+          maxContentLength: args.maxContentLength,
         });
 
         return {
@@ -202,6 +228,15 @@ function formatBatchSearchResult(result: BatchSearchResponse): string {
     // Summary with proper formatting
     if (queryResult.summary) {
       output += `### Summary\n\n${queryResult.summary}\n\n`;
+    }
+
+    // Citations
+    if (queryResult.citations && queryResult.citations.length > 0) {
+      output += `### Citations\n`;
+      for (const citation of queryResult.citations) {
+        output += `[${citation.number}] ${citation.title}\n    ${citation.url}\n`;
+      }
+      output += "\n";
     }
 
     // Search results with count indicator
