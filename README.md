@@ -7,7 +7,7 @@ A Model Context Protocol (MCP) server that provides AI-powered web search using 
 - **AI-Powered Search**: Uses Gemini AI to search the web and provide synthesized answers
 - **Smart Summaries**: Returns AI-generated summaries with proper citations and source URLs
 - **Batch Search**: Process multiple queries in parallel with optional content scraping
-- **Flexible Content Modes**: Choose between AI-generated excerpts (1000 chars), summaries (3000 chars), or full content
+- **Flexible Content Modes**: Choose between AI-generated excerpts (1000 chars), summaries (5000 chars), or full content
 - **Enhanced Citations**: Structured citation format with context, confidence scores, and intelligent text segmentation
 - **Dual Authentication**: Supports OAuth (recommended) and API key authentication
 - **MCP Compatible**: Works seamlessly with Claude Code and other MCP clients
@@ -229,7 +229,7 @@ Use this for multiple related queries when you need comprehensive information. T
       "contentMode": {
         "type": "string",
         "enum": ["excerpt", "summary", "full"],
-        "description": "Content extraction mode: excerpt (AI summary ~1000 chars), summary (AI summary ~3000 chars), or full",
+        "description": "Content extraction mode: excerpt (AI summary ~1000 chars), summary (AI summary ~5000 chars), or full",
         "default": "full"
       },
       "maxContentLength": {
@@ -247,7 +247,7 @@ Use this for multiple related queries when you need comprehensive information. T
 
 When using `google_search_batch`, you can control how scraped content is processed:
 
-- **`excerpt`**: AI-generated summary limited to ~1000 characters - ideal for quick overviews
+- **`excerpt`**: AI-generated summary limited to ~1000 characters (configurable via `EXCERPT_LENGTH`) - ideal for quick overviews
 - **`summary`**: AI-generated summary limited to ~3000 characters - balanced detail and brevity
 - **`full`**: Complete content up to `maxContentLength` - for comprehensive analysis
 
@@ -257,7 +257,7 @@ Example with content mode:
 {
   "queries": ["react hooks best practices", "react performance optimization"],
   "scrapeContent": true,
-  "contentMode": "excerpt"  // Returns 1000-char AI summaries
+  "contentMode": "excerpt"  // Returns AI summaries (default 1000 chars)
 }
 ```
 
@@ -279,7 +279,7 @@ The `google_search` tool returns:
 - Enhanced citation information including:
   - Context where each citation was used
   - Confidence scores for each source (0-1 scale)
-  - Relevant excerpts from the sources
+  - AI-generated summaries from the sources
 - Proper formatting for easy reading
 
 Example output:
@@ -300,8 +300,8 @@ The `google_search_batch` tool returns structured results for each query:
 - Citations section with source references
 - Search results count (e.g., "3/5" indicating 3 results found out of target 5)
 - Scraped content from each URL (when enabled)
-  - **Excerpt mode**: AI-generated summary limited to ~1000 characters
-  - **Summary mode**: AI-generated summary limited to ~3000 characters
+  - **Excerpt mode**: AI-generated summary limited to ~1000 characters (configurable via `EXCERPT_LENGTH`)
+  - **Summary mode**: AI-generated summary limited to ~5000 characters (configurable via `SUMMARY_LENGTH`)
   - **Full mode**: Complete content with optional truncation
 - Clear separation between different queries
 
@@ -395,6 +395,8 @@ gemini-grounding-mcp/
 | `CACHE_TTL` | Cache time-to-live in seconds for scraped content | `3600` (1 hour) |
 | `SCRAPE_TIMEOUT` | Timeout in milliseconds for each scraping attempt | `10000` (10 seconds) |
 | `SCRAPE_RETRIES` | Number of retry attempts for failed scraping | `3` |
+| `EXCERPT_LENGTH` | Maximum character length for excerpt content mode | `1000` |
+| `SUMMARY_LENGTH` | Maximum character length for summary content mode | `5000` |
 
 ## Technology Stack
 
