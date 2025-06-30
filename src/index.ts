@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";

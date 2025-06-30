@@ -16,7 +16,7 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
-    "build": "tsdown src/index.ts --outdir dist --format cjs",
+    "build": "tsdown",
     "build:tsc": "tsc",
     "prepublishOnly": "pnpm run typecheck && pnpm run lint && pnpm run build",
     "lint": "biome check .",
