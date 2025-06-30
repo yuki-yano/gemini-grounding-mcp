@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import fetch from "node-fetch";
+import { OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET } from "../const";
 
 interface OAuth2Token {
   access_token: string;
@@ -11,19 +12,17 @@ interface OAuth2Token {
 }
 
 export class OAuth2Client {
-  private readonly tokenEndpoint = "https://oauth2.googleapis.com/token";
   private readonly oauthPath = join(homedir(), ".gemini", "oauth_creds.json");
+  private readonly tokenEndpoint = "https://oauth2.googleapis.com/token";
 
-  constructor(
-    private clientId: string,
-    private clientSecret: string,
-  ) {}
 
   async getValidToken(): Promise<string> {
     const token = this.loadToken();
 
     if (!token) {
-      throw new Error("No OAuth token found");
+      throw new Error(
+        "No OAuth token found. Please authenticate using 'gemini' command first.",
+      );
     }
 
     // Check if token is expired
@@ -34,10 +33,17 @@ export class OAuth2Client {
     }
 
     // Token is expired, refresh it
-    console.error("OAuth token expired, refreshing...");
-    const refreshedToken = await this.refreshToken(token.refresh_token);
-    this.saveToken(refreshedToken);
-    return refreshedToken.access_token;
+    console.log("OAuth token expired, refreshing...");
+    try {
+      const refreshedToken = await this.refreshToken(token.refresh_token);
+      this.saveToken(refreshedToken);
+      return refreshedToken.access_token;
+    } catch (error) {
+      console.error("Token refresh failed:", error);
+      throw new Error(
+        "OAuth token has expired and refresh failed. Please re-authenticate using 'gemini' command.",
+      );
+    }
   }
 
   private loadToken(): OAuth2Token | null {
@@ -59,8 +65,8 @@ export class OAuth2Client {
 
   private async refreshToken(refreshToken: string): Promise<OAuth2Token> {
     const params = new URLSearchParams({
-      client_id: this.clientId,
-      client_secret: this.clientSecret,
+      client_id: OAUTH_CLIENT_ID,
+      client_secret: OAUTH_CLIENT_SECRET,
       refresh_token: refreshToken,
       grant_type: "refresh_token",
     });
