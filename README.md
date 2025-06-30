@@ -248,7 +248,7 @@ Use this for multiple related queries when you need comprehensive information. T
 When using `google_search_batch`, you can control how scraped content is processed:
 
 - **`excerpt`**: AI-generated summary limited to ~1000 characters (configurable via `EXCERPT_LENGTH`) - ideal for quick overviews
-- **`summary`**: AI-generated summary limited to ~3000 characters - balanced detail and brevity
+- **`summary`**: AI-generated summary limited to ~5000 characters (configurable via `SUMMARY_LENGTH`) - balanced detail and brevity
 - **`full`**: Complete content up to `maxContentLength` - for comprehensive analysis
 
 Example with content mode:
