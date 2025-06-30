@@ -20,7 +20,6 @@ export interface ScrapedContent {
   url: string;
   title: string;
   content: string | null;
-  excerpt: string;
   error?: string;
   scrapedAt: string;
 }
@@ -84,24 +83,24 @@ export interface UnifiedSearchResponse {
 
 // Enhanced citation formats
 export interface EnhancedCitation extends Citation {
-  excerpt?: string;      // Relevant excerpt from the source
-  confidence?: number;   // Citation confidence score (0-1)
-  context?: string;      // Context where citation was used
+  excerpt?: string; // Relevant excerpt from the source
+  confidence?: number; // Citation confidence score (0-1)
+  context?: string; // Context where citation was used
 }
 
 export interface TextSegment {
   text: string;
-  citationIds: number[];  // Citation numbers associated with this segment
-  startIndex: number;     // Start position in original text
-  endIndex: number;       // End position in original text
+  citationIds: number[]; // Citation numbers associated with this segment
+  startIndex: number; // Start position in original text
+  endIndex: number; // End position in original text
 }
 
 export interface StructuredSearchResult {
   query: string;
-  summary: string;          // Text with citation markers
+  summary: string; // Text with citation markers
   citations: EnhancedCitation[];
   structured: {
-    segments: TextSegment[];  // Text broken down by citations
+    segments: TextSegment[]; // Text broken down by citations
     citationMap: Map<number, EnhancedCitation>;
   };
   searchResults?: SearchResultDetail[];

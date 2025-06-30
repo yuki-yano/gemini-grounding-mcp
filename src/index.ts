@@ -92,7 +92,8 @@ const TOOLS = [
         contentMode: {
           type: "string",
           enum: ["excerpt", "summary", "full"],
-          description: "Content extraction mode: excerpt (AI summary ~1000 chars), summary (AI summary ~3000 chars), or full",
+          description:
+            "Content extraction mode: excerpt (AI summary ~1000 chars), summary (AI summary ~3000 chars), or full",
           default: "full",
         },
         maxContentLength: {
@@ -128,8 +129,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         const result = await geminiClient.searchWithOptions(args.query, {
-          includeSearchResults: args.includeSearchResults,
-          maxResults: args.maxResults,
+          includeSearchResults: args.includeSearchResults as
+            | boolean
+            | undefined,
+          maxResults: args.maxResults as number | undefined,
         });
 
         if ("error" in result && result.error) {
@@ -164,8 +167,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const scrapeContent = args.scrapeContent !== false;
         const result = await geminiClient.batchSearch(args.queries, {
           scrapeContent,
-          contentMode: args.contentMode,
-          maxContentLength: args.maxContentLength,
+          contentMode: args.contentMode as
+            | "excerpt"
+            | "summary"
+            | "full"
+            | undefined,
+          maxContentLength: args.maxContentLength as number | undefined,
         });
 
         return {
@@ -273,9 +280,6 @@ function formatBatchSearchResult(result: BatchSearchResponse): string {
           successCount++;
           output += `#### ✅ ${content.title}\n`;
           output += `- URL: ${content.url}\n`;
-          if (content.excerpt) {
-            output += `- Excerpt: ${content.excerpt}\n`;
-          }
           if (content.content) {
             const contentPreview = content.content.slice(0, 200);
             output += `- Content Preview: ${contentPreview}${content.content.length > 200 ? "..." : ""}\n`;

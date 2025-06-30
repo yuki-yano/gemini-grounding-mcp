@@ -12,9 +12,15 @@ export class Scraper {
   private cacheTTL: number;
   private scrapeTimeout: number;
   private scrapeRetries: number;
-  private geminiClient?: any;
+  private excerptLength: number;
+  private summaryLength: number;
+  private geminiClient?: {
+    summarize: (text: string, maxLength: number) => Promise<string>;
+  };
 
-  constructor(geminiClient?: any) {
+  constructor(geminiClient?: {
+    summarize: (text: string, maxLength: number) => Promise<string>;
+  }) {
     this.geminiClient = geminiClient;
     this.cacheTTL = Number.parseInt(process.env.CACHE_TTL || "3600", 10) * 1000;
     this.scrapeTimeout = Number.parseInt(
@@ -22,6 +28,16 @@ export class Scraper {
       10,
     );
     this.scrapeRetries = Number.parseInt(process.env.SCRAPE_RETRIES || "3", 10);
+    this.excerptLength = Number.parseInt(process.env.EXCERPT_LENGTH || "1000", 10);
+    this.summaryLength = Number.parseInt(process.env.SUMMARY_LENGTH || "5000", 10);
+    
+    // Log configuration for debugging
+    if (process.env.DEBUG === "true") {
+      console.log("Scraper configuration:", {
+        excerptLength: this.excerptLength,
+        summaryLength: this.summaryLength,
+      });
+    }
   }
 
   async scrapeUrl(
@@ -79,63 +95,67 @@ export class Scraper {
 
         // Convert to Markdown
         const fullMarkdown = toMarkdown(extracted.root);
-        
+
         // Process content based on mode
         let processedContent: string;
-        let excerpt: string;
-        
+
         switch (contentMode) {
           case "excerpt":
-            // Use Gemini to create a 1000-character summary
-            if (this.geminiClient && fullMarkdown.length > 1500) {
+            // Use Gemini to create an excerpt
+            if (this.geminiClient && fullMarkdown.length > this.excerptLength * 1.5) {
               try {
-                processedContent = await this.geminiClient.summarize(fullMarkdown, 1000);
-                excerpt = processedContent.slice(0, 200) + (processedContent.length > 200 ? "..." : "");
+                processedContent = await this.geminiClient.summarize(
+                  fullMarkdown,
+                  this.excerptLength,
+                );
               } catch (error) {
-                console.error("Failed to generate AI excerpt, falling back to truncation:", error);
+                console.error(
+                  "Failed to generate AI excerpt, falling back to truncation:",
+                  error,
+                );
                 // Fallback to simple truncation
-                processedContent = fullMarkdown.slice(0, 1000);
-                if (fullMarkdown.length > 1000) {
+                processedContent = fullMarkdown.slice(0, this.excerptLength);
+                if (fullMarkdown.length > this.excerptLength) {
                   processedContent += "...";
                 }
-                excerpt = processedContent.slice(0, 500) + (processedContent.length > 500 ? "..." : "");
               }
             } else {
               // For short content or no Gemini client, just truncate
-              processedContent = fullMarkdown.slice(0, 1000);
-              if (fullMarkdown.length > 1000) {
+              processedContent = fullMarkdown.slice(0, this.excerptLength);
+              if (fullMarkdown.length > this.excerptLength) {
                 processedContent += "...";
               }
-              excerpt = processedContent.slice(0, 500) + (processedContent.length > 500 ? "..." : "");
             }
             break;
-          
+
           case "summary":
-            // Use Gemini to create a 3000-character summary
-            if (this.geminiClient && fullMarkdown.length > 3500) {
+            // Use Gemini to create a summary
+            if (this.geminiClient && fullMarkdown.length > this.summaryLength * 1.2) {
               try {
-                processedContent = await this.geminiClient.summarize(fullMarkdown, 3000);
-                excerpt = processedContent.slice(0, 300) + (processedContent.length > 300 ? "..." : "");
+                processedContent = await this.geminiClient.summarize(
+                  fullMarkdown,
+                  this.summaryLength,
+                );
               } catch (error) {
-                console.error("Failed to generate AI summary, falling back to truncation:", error);
+                console.error(
+                  "Failed to generate AI summary, falling back to truncation:",
+                  error,
+                );
                 // Fallback to truncation
-                processedContent = fullMarkdown.slice(0, 3000);
-                if (fullMarkdown.length > 3000) {
-                  processedContent += "\n\n[Content truncated for summary mode]";
+                processedContent = fullMarkdown.slice(0, this.summaryLength);
+                if (fullMarkdown.length > this.summaryLength) {
+                  processedContent +=
+                    "\n\n[Content truncated for summary mode]";
                 }
-                excerpt = fullMarkdown.slice(0, 500) + (fullMarkdown.length > 500 ? "..." : "");
               }
             } else {
               // For short content or no Gemini client, just truncate
-              processedContent = fullMarkdown.slice(0, 3000);
-              if (fullMarkdown.length > 3000) {
+              processedContent = fullMarkdown.slice(0, this.summaryLength);
+              if (fullMarkdown.length > this.summaryLength) {
                 processedContent += "\n\n[Content truncated for summary mode]";
               }
-              excerpt = fullMarkdown.slice(0, 500) + (fullMarkdown.length > 500 ? "..." : "");
             }
             break;
-          
-          case "full":
           default:
             // Apply maxContentLength if specified
             if (fullMarkdown.length > maxContentLength) {
@@ -144,7 +164,6 @@ export class Scraper {
             } else {
               processedContent = fullMarkdown;
             }
-            excerpt = fullMarkdown.slice(0, 500) + (fullMarkdown.length > 500 ? "..." : "");
             break;
         }
 
@@ -153,7 +172,6 @@ export class Scraper {
           url,
           title: extracted.metadata?.title || "Scraped Content",
           content: processedContent,
-          excerpt,
           scrapedAt: new Date().toISOString(),
         };
 
@@ -186,7 +204,6 @@ export class Scraper {
       url,
       title: "Error",
       content: null,
-      excerpt: `Failed to scrape content after ${maxRetries} attempts: ${errorMessage}`,
       error: errorMessage,
       scrapedAt: new Date().toISOString(),
     };

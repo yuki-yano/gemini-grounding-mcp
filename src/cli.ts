@@ -4,54 +4,55 @@ import { GeminiClient } from "./gemini/client";
 import type { BatchSearchResponse } from "./types/index";
 
 function formatBatchResultAsMarkdown(result: BatchSearchResponse): string {
-  let output = `# Batch Search Results (${result.totalQueries} ${result.totalQueries === 1 ? "query" : "queries"})\n\n`;
+  let output = `# Batch Search Results\n\n`;
+  output += `**Total Queries**: ${result.totalQueries}\n\n`;
 
-  let queryIndex = 0;
-  for (const queryResult of result.results) {
-    queryIndex++;
-    output += `## Query ${queryIndex}: "${queryResult.query}"\n\n`;
+  for (const [idx, queryResult] of result.results.entries()) {
+    output += `## ${idx + 1}. ${queryResult.query}\n\n`;
 
     if (queryResult.error) {
-      output += `❌ **Error**: ${queryResult.error}\n\n`;
+      output += `> ❌ **Error**: ${queryResult.error}\n\n`;
       output += `---\n\n`;
       continue;
     }
 
+    // Main summary content
     if (queryResult.summary) {
-      output += `### Summary\n\n${queryResult.summary}\n\n`;
+      output += queryResult.summary;
+      output += "\n\n";
     }
 
-    if (queryResult.searchResults && queryResult.searchResults.length > 0) {
-      const resultCount =
-        queryResult.searchResultCount || queryResult.searchResults.length;
-      const targetCount = queryResult.targetResultCount || 5;
-      output += `### Search Results (${resultCount}/${targetCount})\n\n`;
-
-      for (const [idx, result] of queryResult.searchResults.entries()) {
-        output += `**${idx + 1}. ${result.title}**\n`;
-        output += `- URL: ${result.url}\n`;
-        if (result.snippet) {
-          output += `- Snippet: ${result.snippet}\n`;
-        }
-        output += "\n";
+    // Citations section (if present)
+    if (queryResult.citations && queryResult.citations.length > 0) {
+      output += "### Sources\n\n";
+      for (const citation of queryResult.citations) {
+        output += `[${citation.number}] **${citation.title}**  \n`;
+        output += `${citation.url}\n\n`;
       }
     }
 
+    // Scraped content summary (if present and contains content)
     if (queryResult.scrapedContent && queryResult.scrapedContent.length > 0) {
-      output += `### Scraped Content\n\n`;
+      const successfulScrapes = queryResult.scrapedContent.filter(
+        (c) => !c.error,
+      );
+      if (successfulScrapes.length > 0) {
+        output += `### Additional Content Summary\n\n`;
+        output += `Successfully scraped ${successfulScrapes.length} out of ${queryResult.scrapedContent.length} sources.\n\n`;
 
-      for (const content of queryResult.scrapedContent) {
-        if (content.error) {
-          output += `❌ **Failed**: ${content.title}\n`;
-          output += `- URL: ${content.url}\n`;
-          output += `- Error: ${content.error}\n\n`;
-        } else {
-          output += `✅ **${content.title}**\n`;
-          output += `- URL: ${content.url}\n`;
-          if (content.excerpt) {
-            output += `- Excerpt: ${content.excerpt}\n`;
+        // Show brief summary of scraped content
+        for (const content of successfulScrapes.slice(0, 3)) {
+          output += `- **${content.title}**  \n`;
+          if (content.content) {
+            const shortExcerpt =
+              content.content.substring(0, 150) +
+              (content.content.length > 150 ? "..." : "");
+            output += `  ${shortExcerpt}\n\n`;
           }
-          output += "\n";
+        }
+
+        if (successfulScrapes.length > 3) {
+          output += `\n*...and ${successfulScrapes.length - 3} more sources*\n\n`;
         }
       }
     }
@@ -59,7 +60,7 @@ function formatBatchResultAsMarkdown(result: BatchSearchResponse): string {
     output += `---\n\n`;
   }
 
-  return output;
+  return output.trim();
 }
 
 async function main() {
@@ -68,14 +69,19 @@ async function main() {
   if (args.length === 0) {
     console.log("Usage:");
     console.log(
-      "  pnpm cli search <query>                     - Single search",
+      "  pnpm cli <query>                            - Single search",
     );
-    console.log("  pnpm cli --batch <query1> <query2>          - Batch search");
     console.log(
-      "  pnpm cli --batch --format=markdown <queries> - Batch search with markdown output",
+      "  pnpm cli --batch <query1> <query2>         - Batch search (default: markdown + summary)",
+    );
+    console.log(
+      "  pnpm cli --batch --format=json <queries>    - Batch search with JSON output",
     );
     console.log(
       "  pnpm cli --batch --no-scrape <queries>      - Batch search without scraping",
+    );
+    console.log(
+      "  pnpm cli --batch --content-mode=full <queries> - Batch search with full content",
     );
     console.log("  pnpm cli --scrape <url>                     - Scrape URL");
     process.exit(0);
@@ -107,8 +113,9 @@ async function main() {
       }
     } else if (args[0] === "--batch") {
       // Parse options
-      let format = "json";
+      let format = "markdown"; // Default to markdown format
       let scrapeContent = true;
+      let contentMode: "excerpt" | "summary" | "full" = "summary"; // Default to summary mode
       const queries: string[] = [];
 
       for (let i = 1; i < args.length; i++) {
@@ -116,6 +123,8 @@ async function main() {
           format = args[i].split("=")[1];
         } else if (args[i] === "--no-scrape") {
           scrapeContent = false;
+        } else if (args[i].startsWith("--content-mode=")) {
+          contentMode = args[i].split("=")[1] as "excerpt" | "summary" | "full";
         } else if (!args[i].startsWith("--")) {
           queries.push(args[i]);
         }
@@ -127,9 +136,12 @@ async function main() {
       }
 
       console.log(
-        `Searching for ${queries.length} queries (format: ${format}, scraping: ${scrapeContent})...`,
+        `Searching for ${queries.length} queries (format: ${format}, scraping: ${scrapeContent}, content mode: ${contentMode})...`,
       );
-      const result = await client.batchSearch(queries, { scrapeContent });
+      const result = await client.batchSearch(queries, {
+        scrapeContent,
+        contentMode,
+      });
 
       if (format === "markdown") {
         // Format as markdown

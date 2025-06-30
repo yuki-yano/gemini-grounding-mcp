@@ -1,9 +1,10 @@
 import type {
-  Citation,
   EnhancedCitation,
-  TextSegment,
-  StructuredSearchResult,
+  ScrapedContent,
   SearchResult,
+  SearchResultDetail,
+  StructuredSearchResult,
+  TextSegment,
 } from "../types/index";
 
 /**
@@ -15,18 +16,17 @@ export function parseTextWithCitations(text: string): {
 } {
   const segments: TextSegment[] = [];
   const citationNumbers = new Set<number>();
-  
-  // Regex to find citation markers like [1], [2], etc.
-  const citationRegex = /\[(\d+)\]/g;
+
+  // Find all citation markers
+  const citations = Array.from(text.matchAll(/\[(\d+)\]/g));
   let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  
-  while ((match = citationRegex.exec(text)) !== null) {
+
+  for (const match of citations) {
     const citationNumber = parseInt(match[1], 10);
     citationNumbers.add(citationNumber);
-    
+
     // Add text segment before citation if exists
-    if (match.index > lastIndex) {
+    if (match.index !== undefined && match.index > lastIndex) {
       const segmentText = text.slice(lastIndex, match.index);
       if (segmentText.trim()) {
         segments.push({
@@ -37,25 +37,26 @@ export function parseTextWithCitations(text: string): {
         });
       }
     }
-    
+
     // Find the end of the sentence or paragraph for this citation
-    let endIndex = match.index + match[0].length;
+    const matchIndex = match.index ?? 0;
+    let endIndex = matchIndex + match[0].length;
     const remainingText = text.slice(endIndex);
-    
+
     // Look for sentence endings
     const sentenceEndMatch = remainingText.match(/^[^.!?]*[.!?]/);
     if (sentenceEndMatch) {
       endIndex += sentenceEndMatch[0].length;
     }
-    
+
     // Get the sentence/segment with the citation
-    const segmentWithCitation = text.slice(match.index, endIndex);
-    
+    const segmentWithCitation = text.slice(matchIndex, endIndex);
+
     // Check if we need to merge with previous segment
     const lastSegment = segments[segments.length - 1];
     if (
       lastSegment &&
-      lastSegment.endIndex === match.index &&
+      lastSegment.endIndex === matchIndex &&
       lastSegment.citationIds.length > 0
     ) {
       // Merge with previous segment if they're adjacent and both have citations
@@ -67,14 +68,14 @@ export function parseTextWithCitations(text: string): {
       segments.push({
         text: segmentWithCitation,
         citationIds: [citationNumber],
-        startIndex: match.index,
+        startIndex: matchIndex,
         endIndex: endIndex,
       });
     }
-    
+
     lastIndex = endIndex;
   }
-  
+
   // Add any remaining text
   if (lastIndex < text.length) {
     const remainingText = text.slice(lastIndex);
@@ -87,7 +88,7 @@ export function parseTextWithCitations(text: string): {
       });
     }
   }
-  
+
   return { segments, citationNumbers };
 }
 
@@ -95,40 +96,54 @@ export function parseTextWithCitations(text: string): {
  * Convert a regular SearchResult to StructuredSearchResult
  */
 export function createStructuredSearchResult(
-  searchResult: SearchResult,
-  scrapedContent?: any[],
+  searchResult: SearchResult & {
+    searchResults?: SearchResultDetail[];
+    targetResultCount?: number;
+    processingTime?: number;
+  },
+  scrapedContent?: ScrapedContent[],
 ): StructuredSearchResult {
   const { segments, citationNumbers } = parseTextWithCitations(
     searchResult.summary,
   );
-  
+
   // Create enhanced citations with additional metadata
-  const enhancedCitations: EnhancedCitation[] = searchResult.citations.map(
-    (citation) => {
-      // Find segments that reference this citation
-      const relevantSegments = segments.filter((seg) =>
-        seg.citationIds.includes(citation.number),
-      );
-      
-      // Extract context from the segments
-      const context = relevantSegments
-        .map((seg) => seg.text.replace(/\[\d+\]/g, "").trim())
-        .join(" ... ");
-      
-      return {
-        ...citation,
-        context: context || undefined,
-        confidence: 0.95, // Default high confidence for Gemini grounding
-      };
-    },
-  );
-  
-  // Create citation map for quick lookup
   const citationMap = new Map<number, EnhancedCitation>();
-  enhancedCitations.forEach((citation) => {
-    citationMap.set(citation.number, citation);
-  });
-  
+
+  for (const citation of searchResult.citations) {
+    const citationNumber = citation.number;
+    if (citationNumbers.has(citationNumber)) {
+      // Find segments that use this citation to extract context
+      const relevantSegments = segments.filter((seg) =>
+        seg.citationIds.includes(citationNumber),
+      );
+      const context = relevantSegments.map((seg) => seg.text).join(" ");
+
+      const enhancedCitation: EnhancedCitation = {
+        ...citation,
+        context: context.slice(0, 200), // Limit context length
+        confidence: 0.9, // Default high confidence
+      };
+
+      // Try to extract excerpt from scraped content if available
+      if (scrapedContent) {
+        const matchingContent = scrapedContent.find(
+          (content) => content.url === citation.url,
+        );
+        if (matchingContent?.content) {
+          // Extract first 300 characters as excerpt
+          enhancedCitation.excerpt = matchingContent.content.slice(0, 300) + 
+            (matchingContent.content.length > 300 ? "..." : "");
+        }
+      }
+
+      citationMap.set(citationNumber, enhancedCitation);
+    }
+  }
+
+  // Create citations array from map
+  const enhancedCitations = Array.from(citationMap.values());
+
   return {
     query: searchResult.query,
     summary: searchResult.summary,
@@ -137,43 +152,13 @@ export function createStructuredSearchResult(
       segments,
       citationMap,
     },
+    searchResults: searchResult.searchResults,
     scrapedContent,
     metadata: {
-      citationCount: citationNumbers.size,
+      searchResultCount: searchResult.searchResults?.length,
+      targetResultCount: searchResult.targetResultCount,
+      processingTime: searchResult.processingTime,
+      citationCount: enhancedCitations.length,
     },
   };
-}
-
-/**
- * Format structured result for display
- */
-export function formatStructuredSearchResult(
-  result: StructuredSearchResult,
-): string {
-  let output = `Query: "${result.query}"\n\n`;
-  
-  // Add summary
-  output += `${result.summary}\n`;
-  
-  // Add enhanced citations
-  if (result.citations && result.citations.length > 0) {
-    output += "\nCitations:\n";
-    for (const citation of result.citations) {
-      output += `[${citation.number}] ${citation.title}\n`;
-      output += `    ${citation.url}\n`;
-      if (citation.context) {
-        output += `    Context: "${citation.context}"\n`;
-      }
-      if (citation.confidence !== undefined) {
-        output += `    Confidence: ${(citation.confidence * 100).toFixed(0)}%\n`;
-      }
-    }
-  }
-  
-  // Add metadata
-  if (result.metadata?.citationCount) {
-    output += `\nTotal citations: ${result.metadata.citationCount}`;
-  }
-  
-  return output;
 }
