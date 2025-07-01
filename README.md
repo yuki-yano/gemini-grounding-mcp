@@ -8,7 +8,7 @@ A Model Context Protocol (MCP) server that provides AI-powered web search using 
 - **Smart Summaries**: Returns AI-generated summaries with proper citations and source URLs
 - **Batch Search**: Process multiple queries in parallel with optional content scraping
 - **Flexible Content Modes**: Choose between AI-generated excerpts (1000 chars), summaries (5000 chars), or full content
-- **Enhanced Citations**: Structured citation format with context, confidence scores, and intelligent text segmentation
+- **Enhanced Citations**: Structured citation format with context from Gemini API
 - **Dual Authentication**: Supports OAuth (recommended) and API key authentication
 - **MCP Compatible**: Works seamlessly with Claude Code and other MCP clients
 - **Inspired by**: [mcp-gemini-grounding](https://github.com/ml0-1337/mcp-gemini-grounding) (Go implementation)
@@ -250,6 +250,26 @@ When using `google_search_batch`, you can control how scraped content is process
 - **`excerpt`**: AI-generated summary limited to ~1000 characters (configurable via `EXCERPT_LENGTH`) - ideal for quick overviews
 - **`summary`**: AI-generated summary limited to ~5000 characters (configurable via `SUMMARY_LENGTH`) - balanced detail and brevity
 - **`full`**: Complete content up to `maxContentLength` - for comprehensive analysis
+
+##### When to Use Each Mode
+
+**Use `excerpt` when:**
+- You need a quick overview of multiple sources
+- You're scanning many articles to find relevant information
+- Context length is a concern in your LLM conversation
+- You want AI to distill only the most important points
+
+**Use `summary` when:**
+- You need more detailed information but not the full article
+- You're researching a topic and want substantive summaries
+- You want to balance between detail and brevity
+- You need AI to capture key arguments and supporting details
+
+**Use `full` when:**
+- You need the complete content for thorough analysis
+- You're doing detailed research or fact-checking
+- You want to preserve all original information
+- You plan to process or analyze the raw content yourself
 
 Example with content mode:
 ```javascript
