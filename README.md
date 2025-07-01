@@ -279,6 +279,21 @@ Example with content mode:
   "scrapeContent": true,
   "contentMode": "excerpt"  // Returns AI summaries (default 1000 chars)
 }
+
+// Get detailed summaries for in-depth research
+{
+  "queries": ["quantum computing breakthroughs 2024"],
+  "scrapeContent": true,
+  "contentMode": "summary"  // Returns comprehensive AI summaries (default 5000 chars)
+}
+
+// Get full content for complete analysis
+{
+  "queries": ["typescript 5.0 migration guide"],
+  "scrapeContent": true,
+  "contentMode": "full",
+  "maxContentLength": 20000  // Increase limit for longer articles
+}
 ```
 
 #### Benefits of Batch Search
@@ -296,34 +311,37 @@ Example with content mode:
 The `google_search` tool returns:
 - Main content with inline citations (e.g., [1], [2])
 - List of sources with titles and URLs
-- Enhanced citation information including:
-  - Context where each citation was used
-  - Confidence scores for each source (0-1 scale)
-  - AI-generated summaries from the sources
+- Context information from Gemini's search results when available
 - Proper formatting for easy reading
 
 Example output:
 ```
-Web search results for "TypeScript 5.0":
+Query: "TypeScript 5.0"
 
 TypeScript 5.0 introduces several major features including decorators, const type parameters, and improved performance[1]. The new satisfies operator provides better type checking without affecting runtime behavior[2].
 
-Sources:
-[1] TypeScript 5.0 Release Notes - Microsoft (https://devblogs.microsoft.com/typescript/announcing-typescript-5-0/)
-[2] What's New in TypeScript 5.0 - TypeScript Handbook (https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html)
+Citations:
+[1] TypeScript 5.0 Release Notes - Microsoft
+    https://devblogs.microsoft.com/typescript/announcing-typescript-5-0/
+[2] What's New in TypeScript 5.0 - TypeScript Handbook
+    https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html
 ```
 
 ### Batch Search Output
 
 The `google_search_batch` tool returns structured results for each query:
 - Query-specific summaries with inline citations
-- Citations section with source references
+- Citations section with source references and context from Gemini API
 - Search results count (e.g., "3/5" indicating 3 results found out of target 5)
 - Scraped content from each URL (when enabled)
   - **Excerpt mode**: AI-generated summary limited to ~1000 characters (configurable via `EXCERPT_LENGTH`)
   - **Summary mode**: AI-generated summary limited to ~5000 characters (configurable via `SUMMARY_LENGTH`)
   - **Full mode**: Complete content with optional truncation
 - Clear separation between different queries
+
+When available, citations include:
+- **Context**: The relevant text snippet from Gemini's search results
+- **Excerpt**: The same snippet, providing quick access to source information without opening the URL
 
 Example output:
 ```
