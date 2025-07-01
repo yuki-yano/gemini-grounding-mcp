@@ -120,7 +120,7 @@ Add to your Claude Code settings:
   "mcpServers": {
     "gemini-grounding": {
       "command": "node",
-      "args": ["/path/to/gemini-grounding-mcp/node_modules/.bin/tsx", "/path/to/gemini-grounding-mcp/src/index.ts"]
+      "args": ["/path/to/gemini-grounding-mcp/dist/index.js"]
     }
   }
 }
