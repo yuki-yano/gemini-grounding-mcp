@@ -40,6 +40,7 @@ export function formatBatchResults(
     results: results.map((result) => ({
       query: result.query,
       summary: result.summary,
+      citations: result.citations || [],
       searchResults: result.searchResults || [],
       scrapedContent: result.scrapedContent || [],
       error: result.error,
