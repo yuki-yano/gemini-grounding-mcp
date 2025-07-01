@@ -132,7 +132,8 @@ export function createStructuredSearchResult(
         );
         if (matchingContent?.content) {
           // Extract first 300 characters as excerpt
-          enhancedCitation.excerpt = matchingContent.content.slice(0, 300) + 
+          enhancedCitation.excerpt =
+            matchingContent.content.slice(0, 300) +
             (matchingContent.content.length > 300 ? "..." : "");
         }
       }

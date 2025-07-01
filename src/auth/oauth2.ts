@@ -15,7 +15,6 @@ export class OAuth2Client {
   private readonly oauthPath = join(homedir(), ".gemini", "oauth_creds.json");
   private readonly tokenEndpoint = "https://oauth2.googleapis.com/token";
 
-
   async getValidToken(): Promise<string> {
     const token = this.loadToken();
 

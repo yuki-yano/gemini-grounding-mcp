@@ -28,9 +28,15 @@ export class Scraper {
       10,
     );
     this.scrapeRetries = Number.parseInt(process.env.SCRAPE_RETRIES || "3", 10);
-    this.excerptLength = Number.parseInt(process.env.EXCERPT_LENGTH || "1000", 10);
-    this.summaryLength = Number.parseInt(process.env.SUMMARY_LENGTH || "5000", 10);
-    
+    this.excerptLength = Number.parseInt(
+      process.env.EXCERPT_LENGTH || "1000",
+      10,
+    );
+    this.summaryLength = Number.parseInt(
+      process.env.SUMMARY_LENGTH || "5000",
+      10,
+    );
+
     // Log configuration for debugging
     if (process.env.DEBUG === "true") {
       console.log("Scraper configuration:", {
@@ -102,7 +108,10 @@ export class Scraper {
         switch (contentMode) {
           case "excerpt":
             // Use Gemini to create an excerpt
-            if (this.geminiClient && fullMarkdown.length > this.excerptLength * 1.5) {
+            if (
+              this.geminiClient &&
+              fullMarkdown.length > this.excerptLength * 1.5
+            ) {
               try {
                 processedContent = await this.geminiClient.summarize(
                   fullMarkdown,
@@ -130,7 +139,10 @@ export class Scraper {
 
           case "summary":
             // Use Gemini to create a summary
-            if (this.geminiClient && fullMarkdown.length > this.summaryLength * 1.2) {
+            if (
+              this.geminiClient &&
+              fullMarkdown.length > this.summaryLength * 1.2
+            ) {
               try {
                 processedContent = await this.geminiClient.summarize(
                   fullMarkdown,
