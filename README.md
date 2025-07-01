@@ -70,7 +70,7 @@ The server uses OAuth credentials from `~/.gemini/oauth_creds.json`, which are c
 npm install -g @google/gemini-cli
 
 # Authenticate with your Google account
-gemini auth login
+gemini
 ```
 
 This will open your browser for authentication and save the credentials securely.
