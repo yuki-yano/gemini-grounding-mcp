@@ -83,9 +83,8 @@ export interface UnifiedSearchResponse {
 
 // Enhanced citation formats
 export interface EnhancedCitation extends Citation {
-  excerpt?: string; // Relevant excerpt from the source
-  confidence?: number; // Citation confidence score (0-1)
-  context?: string; // Context where citation was used
+  excerpt?: string; // Relevant excerpt from the source (provided by Gemini API)
+  context?: string; // Context where citation was used (from Gemini's segment.text)
 }
 
 export interface TextSegment {

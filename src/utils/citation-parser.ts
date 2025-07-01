@@ -113,28 +113,20 @@ export function createStructuredSearchResult(
   for (const citation of searchResult.citations) {
     const citationNumber = citation.number;
     if (citationNumbers.has(citationNumber)) {
-      // Find segments that use this citation to extract context
-      const relevantSegments = segments.filter((seg) =>
-        seg.citationIds.includes(citationNumber),
-      );
-      const context = relevantSegments.map((seg) => seg.text).join(" ");
-
       const enhancedCitation: EnhancedCitation = {
         ...citation,
-        context: context.slice(0, 200), // Limit context length
-        confidence: 0.9, // Default high confidence
       };
 
-      // Try to extract excerpt from scraped content if available
-      if (scrapedContent) {
-        const matchingContent = scrapedContent.find(
-          (content) => content.url === citation.url,
+      // Use Gemini's segment.text for excerpt and context if available
+      if (searchResult.searchResults && searchResult.searchResults.length > 0) {
+        // Find the search result that matches this citation
+        const matchingResult = searchResult.searchResults.find(
+          (result) => result.url === citation.url,
         );
-        if (matchingContent?.content) {
-          // Extract first 300 characters as excerpt
-          enhancedCitation.excerpt =
-            matchingContent.content.slice(0, 300) +
-            (matchingContent.content.length > 300 ? "..." : "");
+        if (matchingResult?.snippet) {
+          // Use Gemini's snippet as both excerpt and context
+          enhancedCitation.excerpt = matchingResult.snippet;
+          enhancedCitation.context = matchingResult.snippet;
         }
       }
 
