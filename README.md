@@ -405,7 +405,7 @@ gemini-grounding-mcp/
 - **@modelcontextprotocol/sdk** - MCP protocol implementation
 - **@google/generative-ai** - Official Gemini AI SDK
 - **Biome** - Fast formatter and linter
-- **tsx** - TypeScript execution
+- **tsdown** - TypeScript bundler with build-time optimization
 
 ## Troubleshooting
 
@@ -418,7 +418,7 @@ ls ~/.gemini/oauth_creds.json
 
 If not found, authenticate with:
 ```bash
-gemini auth login
+gemini
 ```
 
 2. **For API key**: Ensure it's set:
