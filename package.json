@@ -18,7 +18,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsdown",
     "build:tsc": "tsc",
-    "prepublishOnly": "pnpm run typecheck && pnpm run lint && pnpm run build",
+    "prepublishOnly": "npm run typecheck && npm run lint && npm run build",
     "lint": "biome check .",
     "format": "biome format --write .",
     "check": "biome check --write .",
