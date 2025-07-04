@@ -1,4 +1,3 @@
-import fetch, { type Response } from "node-fetch";
 import type { AuthConfig } from "../auth/config";
 
 interface CodeAssistRequest {

@@ -1,6 +1,13 @@
-import { extract, toMarkdown } from "@mizchi/readability";
-import fetch from "node-fetch";
 import type { ScrapedContent } from "../types/index";
+
+// Dynamic import for ESM module
+let readabilityModule: any = null;
+const getReadability = async () => {
+  if (!readabilityModule) {
+    readabilityModule = await import("@mizchi/readability");
+  }
+  return readabilityModule;
+};
 
 interface CacheEntry {
   content: ScrapedContent;
@@ -88,6 +95,9 @@ export class Scraper {
         }
 
         const html = await response.text();
+
+        // Get readability module
+        const { extract, toMarkdown } = await getReadability();
 
         // Extract readable content
         const extracted = extract(html, {

@@ -1,7 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import fetch from "node-fetch";
 import { OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET } from "../const";
 
 interface OAuth2Token {

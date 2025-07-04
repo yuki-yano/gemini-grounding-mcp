@@ -57,8 +57,7 @@
     "@mizchi/readability": "^0.6.8",
     "@modelcontextprotocol/sdk": "^1.13.2",
     "dotenv": "^17.0.0",
-    "google-auth-library": "^10.1.0",
-    "node-fetch": "^3.3.2"
+    "google-auth-library": "^10.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.6",
