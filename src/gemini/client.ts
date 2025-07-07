@@ -200,10 +200,15 @@ export class GeminiClient {
       process.env.BATCH_SIZE || String(DEFAULT_BATCH_SIZE),
       10,
     );
-    const delay = Number.parseInt(
+    let delay = Number.parseInt(
       process.env.RATE_LIMIT_DELAY || String(DEFAULT_RATE_LIMIT_DELAY_MS),
       10,
     );
+
+    // Track 429 errors
+    let rateLimitErrors = 0;
+    const RATE_LIMIT_THRESHOLD = 2; // Increase delay after 2 rate limit errors
+    const RATE_LIMIT_BACKOFF_MULTIPLIER = 3; // Multiply delay by 3
 
     // Process queries in batches
     for (let i = 0; i < queries.length; i += batchSize) {
@@ -236,9 +241,28 @@ export class GeminiClient {
             };
           } catch (error) {
             console.error(`Error processing query "${query}":`, error);
+            
+            // Detect 429 errors
+            const errorMessage = (error as Error).message;
+            if (errorMessage.includes("429") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
+              rateLimitErrors++;
+              
+              // More detailed error message
+              return {
+                query,
+                error: `Failed to load Code Assist: ${JSON.stringify({
+                  error: {
+                    code: 429,
+                    message: "Resource has been exhausted (e.g. check quota).",
+                    status: "RESOURCE_EXHAUSTED"
+                  }
+                }, null, 2)}`,
+              };
+            }
+            
             return {
               query,
-              error: (error as Error).message,
+              error: errorMessage,
             };
           }
         },
@@ -249,7 +273,19 @@ export class GeminiClient {
 
       // Rate limiting between batches
       if (i + batchSize < queries.length) {
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        // Increase delay significantly if rate limit threshold is exceeded
+        if (rateLimitErrors >= RATE_LIMIT_THRESHOLD) {
+          const backoffDelay = delay * RATE_LIMIT_BACKOFF_MULTIPLIER;
+          console.error(
+            `Rate limit errors detected (${rateLimitErrors}). ` +
+            `Increasing delay to ${backoffDelay / 1000} seconds for next batch.`
+          );
+          await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+          // Reset error count
+          rateLimitErrors = 0;
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
       }
     }
 
