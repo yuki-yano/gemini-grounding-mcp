@@ -200,7 +200,7 @@ export class GeminiClient {
       process.env.BATCH_SIZE || String(DEFAULT_BATCH_SIZE),
       10,
     );
-    let delay = Number.parseInt(
+    const delay = Number.parseInt(
       process.env.RATE_LIMIT_DELAY || String(DEFAULT_RATE_LIMIT_DELAY_MS),
       10,
     );
@@ -241,25 +241,33 @@ export class GeminiClient {
             };
           } catch (error) {
             console.error(`Error processing query "${query}":`, error);
-            
+
             // Detect 429 errors
             const errorMessage = (error as Error).message;
-            if (errorMessage.includes("429") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
+            if (
+              errorMessage.includes("429") ||
+              errorMessage.includes("RESOURCE_EXHAUSTED")
+            ) {
               rateLimitErrors++;
-              
+
               // More detailed error message
               return {
                 query,
-                error: `Failed to load Code Assist: ${JSON.stringify({
-                  error: {
-                    code: 429,
-                    message: "Resource has been exhausted (e.g. check quota).",
-                    status: "RESOURCE_EXHAUSTED"
-                  }
-                }, null, 2)}`,
+                error: `Failed to load Code Assist: ${JSON.stringify(
+                  {
+                    error: {
+                      code: 429,
+                      message:
+                        "Resource has been exhausted (e.g. check quota).",
+                      status: "RESOURCE_EXHAUSTED",
+                    },
+                  },
+                  null,
+                  2,
+                )}`,
               };
             }
-            
+
             return {
               query,
               error: errorMessage,
@@ -278,7 +286,7 @@ export class GeminiClient {
           const backoffDelay = delay * RATE_LIMIT_BACKOFF_MULTIPLIER;
           console.error(
             `Rate limit errors detected (${rateLimitErrors}). ` +
-            `Increasing delay to ${backoffDelay / 1000} seconds for next batch.`
+              `Increasing delay to ${backoffDelay / 1000} seconds for next batch.`,
           );
           await new Promise((resolve) => setTimeout(resolve, backoffDelay));
           // Reset error count

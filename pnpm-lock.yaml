@@ -23,9 +23,6 @@ importers:
       google-auth-library:
         specifier: ^10.1.0
         version: 10.1.0
-      node-fetch:
-        specifier: ^3.3.2
-        version: 3.3.2
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.0.6
